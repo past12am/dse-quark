@@ -9,7 +9,14 @@ int main()
     MomentumGrid* p2Grid = new MomentumGrid(1000, 1E-3, 10, 1E3);
     DSE* dse = new DSE(1E3, p2Grid);
 
+    clock_t start = clock();
+
     dse->solveDSE();
+
+    clock_t stop = clock();
+    double elapsed = (double) (stop - start) / CLOCKS_PER_SEC;
+    printf("\nTime elapsed: %.5f\n", elapsed);
+
 
 
     // Save M(p2) and A(p2) to files
