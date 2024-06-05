@@ -30,8 +30,8 @@ class QuarkSelfEnergy
         double Sigma_M(double p2);
         double Sigma_A(double p2);
 
-        double Sigma_M(double p2, bool initSpline);
-        double Sigma_A(double p2, bool initSpline);
+        double Sigma_M(double p2, gsl_interp_accel* splineInterpAccel);
+        double Sigma_A(double p2, gsl_interp_accel* splineInterpAccel);
 
         void allocateSplineAccel_M();
         void allocateSplineAccel_A();

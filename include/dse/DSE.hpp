@@ -30,11 +30,11 @@ class DSE
         double alpha(double k2);
         double calc_k2(double p2, double q2, double z);
 
-        double selfEnergyIntegralKernelSigma_A(double p2, double q2, double z);
-        double selfEnergyIntegralKernelSigma_M(double p2, double q2, double z);
+        double selfEnergyIntegralKernelSigma_A(double p2, double q2, double z, gsl_interp_accel* interpAccel_A, gsl_interp_accel* interpAccel_M);
+        double selfEnergyIntegralKernelSigma_M(double p2, double q2, double z, gsl_interp_accel* interpAccel_A, gsl_interp_accel* interpAccel_M);
 
-        double performIntegration_Sigma_M(double p2);
-        double performIntegration_Sigma_A(double p2);
+        double performIntegration_Sigma_M(double p2, gsl_interp_accel* interpAccel_A, gsl_interp_accel* interpAccel_M);
+        double performIntegration_Sigma_A(double p2, gsl_interp_accel* interpAccel_A, gsl_interp_accel* interpAccel_M);
 
         double zIntegral(double p2, double q2, const std::function<double(double, double, double)>& f);
         double q2Integral(double p2, const std::function<double(double, double, double)> &f, double upper_cutoff);

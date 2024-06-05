@@ -8,6 +8,7 @@
 #include <cmath>
 #include <iostream>
 #include <iomanip>
+#include <future>
 
 DSE::DSE(double L2, MomentumGrid* p2Grid) : L2(L2), p2Grid(p2Grid)
 {
@@ -46,8 +47,32 @@ void DSE::solveDSE()
         // At each gridpoint: calculate Sigma_A and Sigma_M
         for (int i = 0; i < p2Grid->getNumPoints(); i++)
         {
-            next_Sigma_A_Vals[i] = performIntegration_Sigma_A(p2Grid->momentumGridAtIdx(i));
-            next_Sigma_M_Vals[i] = performIntegration_Sigma_M(p2Grid->momentumGridAtIdx(i));
+            // Calculate Sigma_A(p2) and set grid values
+            std::future<double> future_newSigma_A_at_p2_val = std::async([this, i]() -> double {
+                gsl_interp_accel* interpAccel_M = gsl_interp_accel_alloc();
+                gsl_interp_accel* interpAccel_A = gsl_interp_accel_alloc();
+
+                double res = performIntegration_Sigma_A(p2Grid->momentumGridAtIdx(i), interpAccel_A, interpAccel_M);
+
+                gsl_interp_accel_free(interpAccel_A);
+                gsl_interp_accel_free(interpAccel_M);
+                return res;
+            });
+
+            std::future<double> future_newSigma_M_at_p2_val = std::async([this, i]() -> double {
+                gsl_interp_accel* interpAccel_M = gsl_interp_accel_alloc();
+                gsl_interp_accel* interpAccel_A = gsl_interp_accel_alloc();
+
+                double res = performIntegration_Sigma_M(p2Grid->momentumGridAtIdx(i), interpAccel_A, interpAccel_M);
+
+                gsl_interp_accel_free(interpAccel_A);
+                gsl_interp_accel_free(interpAccel_M);
+
+                return res;
+            });
+
+            next_Sigma_A_Vals[i] = future_newSigma_A_at_p2_val.get();
+            next_Sigma_M_Vals[i] = future_newSigma_M_at_p2_val.get();
         }
 
 
@@ -87,16 +112,16 @@ void DSE::solveDSE()
     } while (!converged);
 }
 
-double DSE::selfEnergyIntegralKernelSigma_A(double p2, double q2, double z)
+double DSE::selfEnergyIntegralKernelSigma_A(double p2, double q2, double z, gsl_interp_accel* interpAccel_A, gsl_interp_accel* interpAccel_M)
 {
     double k2 = calc_k2(p2, q2, z);
-    return quarkPropagator->sigma_v(q2) * g(k2) * F(p2, q2, k2, z);
+    return quarkPropagator->sigma_v(q2, interpAccel_M, interpAccel_A) * g(k2) * F(p2, q2, k2, z);
 }
 
-double DSE::selfEnergyIntegralKernelSigma_M(double p2, double q2, double z)
+double DSE::selfEnergyIntegralKernelSigma_M(double p2, double q2, double z, gsl_interp_accel* interpAccel_A, gsl_interp_accel* interpAccel_M)
 {
     double k2 = calc_k2(p2, q2, z);
-    return 3.0 * quarkPropagator->sigma_s(q2) * g(k2);
+    return 3.0 * quarkPropagator->sigma_s(q2, interpAccel_M, interpAccel_A) * g(k2);
 }
 
 double DSE::F(double p2, double q2, double k2, double z)
@@ -126,19 +151,19 @@ double DSE::calc_k2(double p2, double q2, double z)
     return p2 + q2 - 2.0 * p * q * z;
 }
 
-double DSE::performIntegration_Sigma_M(double p2)
+double DSE::performIntegration_Sigma_M(double p2, gsl_interp_accel* interpAccel_A, gsl_interp_accel* interpAccel_M)
 {
     std::function<double(double, double, double)> Sigma_A_integrand_function = [=, this](double q2, double p2, double z) -> double {
-        return selfEnergyIntegralKernelSigma_M(p2, q2, z);
+        return selfEnergyIntegralKernelSigma_M(p2, q2, z, interpAccel_A, interpAccel_M);
     };
     double integral_val = q2Integral(p2, Sigma_A_integrand_function, L2);
     return integral_val;
 }
 
-double DSE::performIntegration_Sigma_A(double p2)
+double DSE::performIntegration_Sigma_A(double p2, gsl_interp_accel* interpAccel_A, gsl_interp_accel* interpAccel_M)
 {
     std::function<double(double, double, double)> Sigma_A_integrand_function = [=, this](double q2, double p2, double z) -> double {
-        return selfEnergyIntegralKernelSigma_A(p2, q2, z);
+        return selfEnergyIntegralKernelSigma_A(p2, q2, z, interpAccel_A, interpAccel_M);
     };
     double integral_val = q2Integral(p2, Sigma_A_integrand_function, L2);
     return integral_val;

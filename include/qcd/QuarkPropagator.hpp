@@ -22,8 +22,14 @@ class QuarkPropagator
         double M(double p2);
         double A(double p2);
 
+        double M(double p2, gsl_interp_accel* interpAccel_M, gsl_interp_accel* interpAccel_A);
+        double A(double p2, gsl_interp_accel* interpAccel_A);
+
         double sigma_v(double p2);
         double sigma_s(double p2);
+
+        double sigma_v(double p2, gsl_interp_accel* interpAccel_M, gsl_interp_accel* interpAccel_A);
+        double sigma_s(double p2, gsl_interp_accel* interpAccel_M, gsl_interp_accel* interpAccel_A);
 };
 
 
