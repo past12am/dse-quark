@@ -9,12 +9,19 @@ int main()
     MomentumGrid* p2Grid = new MomentumGrid(1000, 1E-3, 10, 1E3);
     DSE* dse = new DSE(1E3, p2Grid);
 
-    clock_t start = clock();
+
+    struct timespec start, finish;
+    double elapsed;
+
+    clock_gettime(CLOCK_MONOTONIC, &start);
 
     dse->solveDSE();
 
-    clock_t stop = clock();
-    double elapsed = (double) (stop - start) / CLOCKS_PER_SEC;
+    clock_gettime(CLOCK_MONOTONIC, &finish);
+
+    elapsed = (finish.tv_sec - start.tv_sec);
+    elapsed += (finish.tv_nsec - start.tv_nsec) / 1000000000.0;
+
     printf("\nTime elapsed: %.5f\n", elapsed);
 
 

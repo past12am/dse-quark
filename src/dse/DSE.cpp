@@ -40,6 +40,10 @@ void DSE::solveDSE()
     double next_Sigma_A_Vals[p2Grid->getNumPoints()];
     double next_Sigma_M_Vals[p2Grid->getNumPoints()];
 
+    // For Threadpool
+    std::future<double> future_newSigma_A_at_p2_val[NUM_THREADS];
+    std::future<double> future_newSigma_M_at_p2_val[NUM_THREADS];
+
     bool converged = false;
     int iteration = 1;
     do
@@ -47,32 +51,57 @@ void DSE::solveDSE()
         // At each gridpoint: calculate Sigma_A and Sigma_M
         for (int i = 0; i < p2Grid->getNumPoints(); i++)
         {
-            // Calculate Sigma_A(p2) and set grid values
-            std::future<double> future_newSigma_A_at_p2_val = std::async([this, i]() -> double {
-                gsl_interp_accel* interpAccel_M = gsl_interp_accel_alloc();
-                gsl_interp_accel* interpAccel_A = gsl_interp_accel_alloc();
+            // Calculate Sigma_A(p2) and Sigma_M(p2) and set grid values
 
-                double res = performIntegration_Sigma_A(p2Grid->momentumGridAtIdx(i), interpAccel_A, interpAccel_M);
+            int allocation_counter = 0;
+            for (int threadIdx = 0; threadIdx < NUM_THREADS; threadIdx++)
+            {
+                future_newSigma_A_at_p2_val[threadIdx] = std::async([this, i]() -> double {
+                    gsl_interp_accel* interpAccel_M = gsl_interp_accel_alloc();
+                    gsl_interp_accel* interpAccel_A = gsl_interp_accel_alloc();
 
-                gsl_interp_accel_free(interpAccel_A);
-                gsl_interp_accel_free(interpAccel_M);
-                return res;
-            });
+                    double res = performIntegration_Sigma_A(p2Grid->momentumGridAtIdx(i), interpAccel_A, interpAccel_M);
 
-            std::future<double> future_newSigma_M_at_p2_val = std::async([this, i]() -> double {
-                gsl_interp_accel* interpAccel_M = gsl_interp_accel_alloc();
-                gsl_interp_accel* interpAccel_A = gsl_interp_accel_alloc();
+                    gsl_interp_accel_free(interpAccel_A);
+                    gsl_interp_accel_free(interpAccel_M);
+                    return res;
+                });
 
-                double res = performIntegration_Sigma_M(p2Grid->momentumGridAtIdx(i), interpAccel_A, interpAccel_M);
+                future_newSigma_M_at_p2_val[threadIdx] = std::async([this, i]() -> double {
+                    gsl_interp_accel* interpAccel_M = gsl_interp_accel_alloc();
+                    gsl_interp_accel* interpAccel_A = gsl_interp_accel_alloc();
 
-                gsl_interp_accel_free(interpAccel_A);
-                gsl_interp_accel_free(interpAccel_M);
+                    double res = performIntegration_Sigma_M(p2Grid->momentumGridAtIdx(i), interpAccel_A, interpAccel_M);
 
-                return res;
-            });
+                    gsl_interp_accel_free(interpAccel_A);
+                    gsl_interp_accel_free(interpAccel_M);
 
-            next_Sigma_A_Vals[i] = future_newSigma_A_at_p2_val.get();
-            next_Sigma_M_Vals[i] = future_newSigma_M_at_p2_val.get();
+                    return res;
+                });
+
+                // Increase i, as we allocated it for threads
+                i++;
+                allocation_counter++;
+
+                // If we hit the last possible i, break
+                if(i == p2Grid->getNumPoints())
+                    break;
+            }
+
+
+            // Note: that i changed by allocation_counter, thus
+            //      next_Sigma_A_Vals[i - allocation_counter + threadIdx]
+            for (int threadIdx = 0; threadIdx < NUM_THREADS; threadIdx++)
+            {
+                next_Sigma_A_Vals[i - allocation_counter + threadIdx] = future_newSigma_A_at_p2_val[threadIdx].get();
+                next_Sigma_M_Vals[i - allocation_counter + threadIdx] = future_newSigma_M_at_p2_val[threadIdx].get();
+
+                if(i - allocation_counter + threadIdx == p2Grid->getNumPoints() - 1)
+                    break;
+            }
+
+            // As i will be increased in the next step (although already has been increased) --> correct
+            i--;
         }
 
 

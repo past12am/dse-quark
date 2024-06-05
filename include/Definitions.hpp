@@ -14,4 +14,6 @@
 #define LAMBDA_QCD 0.234        // GeV
 #define GAMMA_m 12.0/25.0
 
+#define NUM_THREADS 6
+
 #endif //QUARKDSE_V3_DEFINITIONS_HPP
