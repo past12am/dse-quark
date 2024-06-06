@@ -10,6 +10,8 @@
 
 #include <functional>
 
+#include <gsl/gsl_complex.h>
+
 class GaussChebyshev
 {
     private:
@@ -18,7 +20,7 @@ class GaussChebyshev
     public:
         GaussChebyshev(int n);
 
-        double integrate_f_times_sqrt(std::function<double(double)>& f);
+        gsl_complex integrate_f_times_sqrt(std::function<gsl_complex(double)>& f);
 };
 
 

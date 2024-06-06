@@ -9,13 +9,16 @@
 
 #include <functional>
 
-double GaussChebyshev::integrate_f_times_sqrt(std::function<double(double)>& f)
+#include <gsl/gsl_complex.h>
+#include <gsl/gsl_complex_math.h>
+
+gsl_complex GaussChebyshev::integrate_f_times_sqrt(std::function<gsl_complex(double)>& f)
 {
-    double val = 0;
+    gsl_complex val = GSL_COMPLEX_ZERO;
     double a = M_PI/(n + 1.0);
     for (int i = 0; i < n; i++)
     {
-        val += (a * pow(sin(a * i), 2)) * f(cos(a * i));
+        val = gsl_complex_add(val, gsl_complex_mul_real(f(a * i), (a * pow(sin(a * i), 2))));
     }
     return val;
 }

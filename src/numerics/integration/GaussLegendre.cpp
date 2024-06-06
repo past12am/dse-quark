@@ -7,6 +7,7 @@
 #include "../../../include/numerics/polynomials/LegendrePolynomials.hpp"
 
 #include <cmath>
+#include <gsl/gsl_complex_math.h>
 
 std::tuple<double*, double*> GaussLegendre::generageWeights(int n)
 {
@@ -31,7 +32,7 @@ std::tuple<double*, double*> GaussLegendre::generageWeights(int n)
     return std::tuple<double*, double*>{w_arr, x_arr};
 }
 
-double GaussLegendre::integrate(std::function<double(double)>& f, double a, double b)
+gsl_complex GaussLegendre::integrate(std::function<gsl_complex(gsl_complex)>& f, double a, double b)
 {
     /*
     std::cout << "w: ";
@@ -49,11 +50,11 @@ double GaussLegendre::integrate(std::function<double(double)>& f, double a, doub
     std::cout << std::endl;
     */
 
-    double val = 0.0;
+    gsl_complex val = GSL_COMPLEX_ZERO;
     for (int i = 0; i < n; i++)
     {
-        double cur_val = w_arr[i] * (b - a)/2.0 * f((b - a)/2.0 * x_arr[i] + (b + a)/2.0);
-        val += cur_val;
+        gsl_complex cur_val = gsl_complex_mul_real(f(gsl_complex_rect((b - a)/2.0 * x_arr[i] + (b + a)/2.0, 0)), w_arr[i] * (b - a)/2.0);
+        val = gsl_complex_add(val, cur_val);
     }
 
     return val;

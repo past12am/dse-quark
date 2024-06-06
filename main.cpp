@@ -3,11 +3,18 @@
 #include <fstream>
 #include "include/dse/DSE.hpp"
 #include "include/Definitions.hpp"
+#include "include/grid/ComplexMomentumGrid.hpp"
 
 int main()
 {
-    MomentumGrid* p2Grid = new MomentumGrid(1000, 1E-3, 10, 1E3);
+
+    ComplexMomentumGrid* p2Grid = new ComplexMomentumGrid(100, 3, 1E-3, 10, 1E3);
     DSE* dse = new DSE(1E3, p2Grid);
+
+
+
+    //ComplexMomentumGrid* p2Grid = new ComplexMomentumGrid(1000, 1, 1E-3, 10, 1E3);
+    //DSE* dse = new DSE(1E3, p2Grid);
 
 
     struct timespec start, finish;
@@ -30,11 +37,11 @@ int main()
     QuarkPropagator* quarkPropagator = dse->getQuarkPropagator();
 
     std::ostringstream fnamestrstream_A_p2;
-    fnamestrstream_A_p2 << "/home/past12am/OuzoCloud/Studium/Physik/6_Semester/SE_Bachelorarbeit/QCD_Intro/QuarkDSE/output/A_p2_m_" << QUARK_MASS << ".txt";
+    fnamestrstream_A_p2 << "/home/past12am/OuzoCloud/Studium/Physik/6_Semester/SE_Bachelorarbeit/QCD_Intro/QuarkDSE_v3/output/A_p2_m_" << QUARK_MASS << ".txt";
     std::string filename_A_p2 = fnamestrstream_A_p2.str();
 
     std::ostringstream fnamestrstream_M_p2;
-    fnamestrstream_M_p2 << "/home/past12am/OuzoCloud/Studium/Physik/6_Semester/SE_Bachelorarbeit/QCD_Intro/QuarkDSE/output/M_p2_m_" << QUARK_MASS << ".txt";
+    fnamestrstream_M_p2 << "/home/past12am/OuzoCloud/Studium/Physik/6_Semester/SE_Bachelorarbeit/QCD_Intro/QuarkDSE_v3/output/M_p2_m_" << QUARK_MASS << ".txt";
     std::string filename_M_p2 = fnamestrstream_M_p2.str();
 
     std::ofstream A_p2_file;
@@ -43,13 +50,16 @@ int main()
     std::ofstream M_p2_file;
     M_p2_file.open(filename_M_p2, std::ofstream::out | std::ios::trunc);
 
-    A_p2_file << "p2;A" << std::endl;
-    M_p2_file << "p2;M" << std::endl;
+    A_p2_file << "p2_real;p2_imag;A_real;A_imag" << std::endl;
+    M_p2_file << "p2_real;p2_imag;M_real;M_imag" << std::endl;
 
-    for (int i = 0; i < p2Grid->getNumPoints(); i++)
+    for(int j = 0; j < p2Grid->getNumImagPoints(); j++)
     {
-        A_p2_file << p2Grid->momentumGridAtIdx(i) << ";" << quarkPropagator->A(p2Grid->momentumGridAtIdx(i)) << std::endl;
-        M_p2_file << p2Grid->momentumGridAtIdx(i) << ";" << quarkPropagator->M(p2Grid->momentumGridAtIdx(i)) << std::endl;
+        for (int i = 0; i < p2Grid->getNumRealPoints(); i++)
+        {
+            A_p2_file << GSL_REAL(p2Grid->momentumGridAtIdx(j, i)) << ";" << GSL_IMAG(p2Grid->momentumGridAtIdx(j, i)) << ";" << GSL_REAL(quarkPropagator->A(p2Grid->momentumGridAtIdx(j, i))) << ";" << GSL_IMAG(quarkPropagator->A(p2Grid->momentumGridAtIdx(j, i))) << std::endl;
+            M_p2_file << GSL_REAL(p2Grid->momentumGridAtIdx(j, i)) << ";" << GSL_IMAG(p2Grid->momentumGridAtIdx(j, i)) << ";" << GSL_REAL(quarkPropagator->M(p2Grid->momentumGridAtIdx(j, i))) << ";" << GSL_IMAG(quarkPropagator->M(p2Grid->momentumGridAtIdx(j, i))) << std::endl;
+        }
     }
 
     A_p2_file.close();

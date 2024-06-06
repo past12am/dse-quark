@@ -19,17 +19,15 @@ class QuarkPropagator
     public:
         QuarkPropagator(QuarkSelfEnergy* selfEnergy);
 
-        double M(double p2);
-        double A(double p2);
+        gsl_complex M(gsl_complex p2);
+        gsl_complex A(gsl_complex p2);
+        gsl_complex M(gsl_complex p2, InterpAccels* interpAccels);
+        gsl_complex A(gsl_complex p2, InterpAccels* interpAccels);
 
-        double M(double p2, gsl_interp_accel* interpAccel_M, gsl_interp_accel* interpAccel_A);
-        double A(double p2, gsl_interp_accel* interpAccel_A);
-
-        double sigma_v(double p2);
-        double sigma_s(double p2);
-
-        double sigma_v(double p2, gsl_interp_accel* interpAccel_M, gsl_interp_accel* interpAccel_A);
-        double sigma_s(double p2, gsl_interp_accel* interpAccel_M, gsl_interp_accel* interpAccel_A);
+        gsl_complex sigma_v(gsl_complex p2);
+        gsl_complex sigma_s(gsl_complex p2);
+        gsl_complex sigma_v(gsl_complex p2, InterpAccels* interpAccels);
+        gsl_complex sigma_s(gsl_complex p2, InterpAccels* interpAccels);
 };
 
 

@@ -10,6 +10,8 @@
 
 #include <functional>
 
+#include <gsl/gsl_complex.h>
+
 class GaussLegendre
 {
     private:
@@ -24,7 +26,7 @@ class GaussLegendre
         GaussLegendre(int n);
         virtual ~GaussLegendre();
 
-        double integrate(std::function<double(double)>& f, double a, double b);
+        gsl_complex integrate(std::function<gsl_complex(gsl_complex)>& f, double a, double b);
 };
 
 #endif //QUARKDSE_GAUSSLEGENDRE_HPP

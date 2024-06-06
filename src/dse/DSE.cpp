@@ -9,8 +9,9 @@
 #include <iostream>
 #include <iomanip>
 #include <future>
+#include <gsl/gsl_complex_math.h>
 
-DSE::DSE(double L2, MomentumGrid* p2Grid) : L2(L2), p2Grid(p2Grid)
+DSE::DSE(double L2, ComplexMomentumGrid* p2Grid) : L2(L2), p2Grid(p2Grid)
 {
     selfEnergy = new QuarkSelfEnergy(p2Grid);
     quarkPropagator = new QuarkPropagator(selfEnergy);
@@ -27,188 +28,197 @@ void DSE::solveDSE()
     // Initiallize A(p2) = 1 and M(p2) = m
     //      --> Set Sigma_A and Sigma_M = 0
 
-    for (int i = 0; i < p2Grid->getNumPoints(); i++)
+    for (int j = 0; j < p2Grid->getNumImagPoints(); j++)
     {
-        selfEnergy->setSigmaAAt(i, 0);
-        selfEnergy->setSigmaMAt(i, 0);
+        for (int i = 0; i < p2Grid->getNumRealPoints(); i++)
+        {
+            selfEnergy->setSigmaAAt(j, i, GSL_COMPLEX_ZERO);
+            selfEnergy->setSigmaMAt(j, i, GSL_COMPLEX_ZERO);
+        }
     }
     selfEnergy->reclacSigma_A_Spline();
     selfEnergy->reclacSigma_M_Spline();
 
 
     // For next iteration
-    double next_Sigma_A_Vals[p2Grid->getNumPoints()];
-    double next_Sigma_M_Vals[p2Grid->getNumPoints()];
+    gsl_complex next_Sigma_A_Vals[p2Grid->getNumPoints()];
+    gsl_complex next_Sigma_M_Vals[p2Grid->getNumPoints()];
 
     // For Threadpool
-    std::future<double> future_newSigma_A_at_p2_val[NUM_THREADS];
-    std::future<double> future_newSigma_M_at_p2_val[NUM_THREADS];
+    std::future<gsl_complex> future_newSigma_A_at_p2_val[NUM_THREADS];
+    std::future<gsl_complex> future_newSigma_M_at_p2_val[NUM_THREADS];
 
     bool converged = false;
     int iteration = 1;
     do
     {
         // At each gridpoint: calculate Sigma_A and Sigma_M
-        for (int i = 0; i < p2Grid->getNumPoints(); i++)
+        for (int j = 0; j < p2Grid->getNumImagPoints(); j++)
         {
-            // Calculate Sigma_A(p2) and Sigma_M(p2) and set grid values
-
-            int allocation_counter = 0;
-            for (int threadIdx = 0; threadIdx < NUM_THREADS; threadIdx++)
+            for (int i = 0; i < p2Grid->getNumRealPoints(); i++)
             {
-                future_newSigma_A_at_p2_val[threadIdx] = std::async([this, i]() -> double {
-                    gsl_interp_accel* interpAccel_M = gsl_interp_accel_alloc();
-                    gsl_interp_accel* interpAccel_A = gsl_interp_accel_alloc();
+                // Calculate Sigma_A(p2) and Sigma_M(p2) and set grid values
 
-                    double res = performIntegration_Sigma_A(p2Grid->momentumGridAtIdx(i), interpAccel_A, interpAccel_M);
+                int allocation_counter = 0;
+                for (int threadIdx = 0; threadIdx < NUM_THREADS; threadIdx++)
+                {
+                    future_newSigma_A_at_p2_val[threadIdx] = std::async([this, j, i]() -> gsl_complex {
+                        InterpAccels interpAccels = allocInterpAccels();
 
-                    gsl_interp_accel_free(interpAccel_A);
-                    gsl_interp_accel_free(interpAccel_M);
-                    return res;
-                });
+                        gsl_complex res = performIntegration_Sigma_A(p2Grid->momentumGridAtIdx(j, i), &interpAccels);
 
-                future_newSigma_M_at_p2_val[threadIdx] = std::async([this, i]() -> double {
-                    gsl_interp_accel* interpAccel_M = gsl_interp_accel_alloc();
-                    gsl_interp_accel* interpAccel_A = gsl_interp_accel_alloc();
+                        freeInterpAccels(interpAccels);
+                        return res;
+                    });
 
-                    double res = performIntegration_Sigma_M(p2Grid->momentumGridAtIdx(i), interpAccel_A, interpAccel_M);
+                    future_newSigma_M_at_p2_val[threadIdx] = std::async([this, j, i]() -> gsl_complex {
+                        InterpAccels interpAccels = allocInterpAccels();
 
-                    gsl_interp_accel_free(interpAccel_A);
-                    gsl_interp_accel_free(interpAccel_M);
+                        gsl_complex res = performIntegration_Sigma_M(p2Grid->momentumGridAtIdx(j, i), &interpAccels);
 
-                    return res;
-                });
+                        freeInterpAccels(interpAccels);
 
-                // Increase i, as we allocated it for threads
-                i++;
-                allocation_counter++;
+                        return res;
+                    });
 
-                // If we hit the last possible i, break
-                if(i == p2Grid->getNumPoints())
-                    break;
+                    // Increase i, as we allocated it for threads
+                    i++;
+                    allocation_counter++;
+
+                    // If we hit the last possible i, break
+                    if(i == p2Grid->getNumRealPoints())
+                        break;
+                }
+
+
+                // Note: that i changed by allocation_counter, thus
+                //      next_Sigma_A_Vals[i - allocation_counter + threadIdx]
+                for (int threadIdx = 0; threadIdx < NUM_THREADS; threadIdx++)
+                {
+                    next_Sigma_A_Vals[i - allocation_counter + threadIdx] = future_newSigma_A_at_p2_val[threadIdx].get();
+                    next_Sigma_M_Vals[i - allocation_counter + threadIdx] = future_newSigma_M_at_p2_val[threadIdx].get();
+
+                    if(i - allocation_counter + threadIdx == p2Grid->getNumRealPoints() - 1)
+                        break;
+                }
+
+                // As i will be increased in the next step (although already has been increased) --> correct
+                i--;
             }
-
-
-            // Note: that i changed by allocation_counter, thus
-            //      next_Sigma_A_Vals[i - allocation_counter + threadIdx]
-            for (int threadIdx = 0; threadIdx < NUM_THREADS; threadIdx++)
-            {
-                next_Sigma_A_Vals[i - allocation_counter + threadIdx] = future_newSigma_A_at_p2_val[threadIdx].get();
-                next_Sigma_M_Vals[i - allocation_counter + threadIdx] = future_newSigma_M_at_p2_val[threadIdx].get();
-
-                if(i - allocation_counter + threadIdx == p2Grid->getNumPoints() - 1)
-                    break;
-            }
-
-            // As i will be increased in the next step (although already has been increased) --> correct
-            i--;
         }
 
 
         // Check for Convergence
         converged = true;
-        for (int i = 0; i < p2Grid->getNumPoints(); i++)
+        for (int j = 0; j < p2Grid->getNumImagPoints(); j++)
         {
-            if((abs(next_Sigma_A_Vals[i] - selfEnergy->getSigmaAValGrid()[i]) > 1E-10) ||
-               (abs(next_Sigma_M_Vals[i] - selfEnergy->getSigmaMValGrid()[i]) > 1E-10))
+            for (int i = 0; i < p2Grid->getNumRealPoints(); i++)
             {
-                converged = false;
-                break;
+                if ((gsl_complex_abs(gsl_complex_sub(next_Sigma_A_Vals[i], selfEnergy->getSigmaAValGrid(j, i))) > 1E-10) ||
+                    (gsl_complex_abs(gsl_complex_sub(next_Sigma_M_Vals[i], selfEnergy->getSigmaMValGrid(j, i))) > 1E-10))
+                {
+                    converged = false;
+                    break;
+                }
             }
         }
 
 
         // Update Grid and recalculate Splines
-        for (int i = 0; i < p2Grid->getNumPoints(); i++)
+        for (int j = 0; j < p2Grid->getNumImagPoints(); j++)
         {
-            selfEnergy->setSigmaAAt(i, next_Sigma_A_Vals[i]);
-            selfEnergy->setSigmaMAt(i, next_Sigma_M_Vals[i]);
+            for (int i = 0; i < p2Grid->getNumRealPoints(); i++)
+            {
+                selfEnergy->setSigmaAAt(j, i, next_Sigma_A_Vals[i]);
+                selfEnergy->setSigmaMAt(j, i, next_Sigma_M_Vals[i]);
+            }
         }
         selfEnergy->reclacSigma_A_Spline();
         selfEnergy->reclacSigma_M_Spline();
 
 
         // Determine Self-Energies at the renorm point
-        double Sigma_M_mu2 = selfEnergy->Sigma_M(RENORM_POINT2);
-        double Sigma_A_mu2 = selfEnergy->Sigma_A(RENORM_POINT2);
+        gsl_complex Sigma_M_mu2 = selfEnergy->Sigma_M(gsl_complex_rect(RENORM_POINT2, 0));
+        gsl_complex Sigma_A_mu2 = selfEnergy->Sigma_A(gsl_complex_rect(RENORM_POINT2, 0));
 
-        Z_2 = 1.0 - Sigma_A_mu2;
+        Z_2 = gsl_complex_add_real(gsl_complex_negative(Sigma_A_mu2), 1.0);
 
 
-        std::cout << "Iteration " << iteration << ": Sigma_A(mu^2) = " << Sigma_A_mu2 << std::endl;
-        std::cout << "Iteration " << iteration << ": Sigma_M(mu^2) = " << Sigma_M_mu2 << std::endl;
+        std::cout << "Iteration " << iteration << ": Sigma_A(mu^2) = " << GSL_REAL(Sigma_A_mu2) << ((GSL_IMAG(Sigma_A_mu2) < 0) ? " - " : " + ") << GSL_IMAG(Sigma_A_mu2) << "i" << std::endl;
+        std::cout << "Iteration " << iteration << ": Sigma_M(mu^2) = " << GSL_REAL(Sigma_M_mu2) << ((GSL_IMAG(Sigma_M_mu2) < 0) ? " - " : " + ") << GSL_IMAG(Sigma_M_mu2) << "i" << std::endl;
         iteration++;
     } while (!converged);
 }
 
-double DSE::selfEnergyIntegralKernelSigma_A(double p2, double q2, double z, gsl_interp_accel* interpAccel_A, gsl_interp_accel* interpAccel_M)
+gsl_complex DSE::selfEnergyIntegralKernelSigma_A(gsl_complex p2, gsl_complex q2, double z, InterpAccels* interpAccels)
 {
-    double k2 = calc_k2(p2, q2, z);
-    return quarkPropagator->sigma_v(q2, interpAccel_M, interpAccel_A) * g(k2) * F(p2, q2, k2, z);
+    gsl_complex k2 = calc_k2(p2, q2, z);
+    return gsl_complex_mul(gsl_complex_mul(quarkPropagator->sigma_v(q2, interpAccels), g(k2)), F(p2, q2, k2, z));
 }
 
-double DSE::selfEnergyIntegralKernelSigma_M(double p2, double q2, double z, gsl_interp_accel* interpAccel_A, gsl_interp_accel* interpAccel_M)
+gsl_complex DSE::selfEnergyIntegralKernelSigma_M(gsl_complex p2, gsl_complex q2, double z, InterpAccels* interpAccels)
 {
-    double k2 = calc_k2(p2, q2, z);
-    return 3.0 * quarkPropagator->sigma_s(q2, interpAccel_M, interpAccel_A) * g(k2);
+    gsl_complex k2 = calc_k2(p2, q2, z);
+    return gsl_complex_mul_real(gsl_complex_mul(quarkPropagator->sigma_s(q2, interpAccels), g(k2)), 3.0);
 }
 
-double DSE::F(double p2, double q2, double k2, double z)
+gsl_complex DSE::F(gsl_complex p2, gsl_complex q2, gsl_complex k2, double z)
 {
-    double q = sqrt(q2);
-    double p = sqrt(p2);
+    gsl_complex q = gsl_complex_sqrt(q2);
+    gsl_complex p = gsl_complex_sqrt(p2);
 
-    return (3.0 * q * z) / p - 2 * q2/k2 * (1 - pow(z ,2));
+    return gsl_complex_sub(gsl_complex_div(gsl_complex_mul_real(q, 3.0 * z), p), gsl_complex_mul_real(gsl_complex_div(q2, k2), 2.0 * (1 - pow(z ,2))));
 }
 
-double DSE::g(double k2)
+gsl_complex DSE::g(gsl_complex k2)
 {
-    return pow(Z_2, 2) * 16.0 * M_PI/3.0 * alpha(k2)/k2;
+    return gsl_complex_mul(gsl_complex_pow_real(Z_2, 2), gsl_complex_mul_real(gsl_complex_div(alpha(k2), k2), 16.0 * M_PI/3.0));
 }
 
-double DSE::alpha(double k2)
+gsl_complex DSE::alpha(gsl_complex k2)
 {
-    double x = k2/LAMBDA;
-    return M_PI * pow(ETA, 7) * pow(x, 2) * exp(-pow(ETA, 2) * x) + (2.0 * M_PI * GAMMA_m * (1.0 - exp(-k2/pow(LAMBDA_t, 2)))) /
-                                                                    (log(pow(M_E, 2) - 1.0 + pow(1.0 + k2/pow(LAMBDA_QCD, 2), 2)));
+    gsl_complex x = gsl_complex_div_real(k2, LAMBDA);
+    return gsl_complex_add(gsl_complex_mul(gsl_complex_mul_real(gsl_complex_pow_real(x, 2), M_PI * pow(ETA, 7)), gsl_complex_exp(gsl_complex_mul_real(x, -pow(ETA, 2)))),
+                           gsl_complex_div(gsl_complex_mul_real(gsl_complex_sub(GSL_COMPLEX_ONE, gsl_complex_exp(gsl_complex_div_real(k2, -pow(LAMBDA_t, 2)))), 2.0 * M_PI * GAMMA_m),
+                                              gsl_complex_log(gsl_complex_add_real(gsl_complex_pow_real(gsl_complex_add_real(gsl_complex_div_real(k2, pow(LAMBDA_QCD, 2)), 1), 2), pow(M_E, 2) - 1.0))));
 }
 
-double DSE::calc_k2(double p2, double q2, double z)
+gsl_complex DSE::calc_k2(gsl_complex p2, gsl_complex q2, double z)
 {
-    double p = sqrt(p2);
-    double q = sqrt(q2);
-    return p2 + q2 - 2.0 * p * q * z;
+    gsl_complex p = gsl_complex_sqrt(p2);
+    gsl_complex q = gsl_complex_sqrt(q2);
+    return gsl_complex_sub(gsl_complex_add(p2, q2), gsl_complex_mul_real(gsl_complex_mul(p, q), 2.0 * z));
 }
 
-double DSE::performIntegration_Sigma_M(double p2, gsl_interp_accel* interpAccel_A, gsl_interp_accel* interpAccel_M)
+gsl_complex DSE::performIntegration_Sigma_M(gsl_complex p2, InterpAccels* interpAccels)
 {
-    std::function<double(double, double, double)> Sigma_A_integrand_function = [=, this](double q2, double p2, double z) -> double {
-        return selfEnergyIntegralKernelSigma_M(p2, q2, z, interpAccel_A, interpAccel_M);
+    std::function<gsl_complex(gsl_complex, gsl_complex, double)> Sigma_A_integrand_function = [=, this](gsl_complex q2, gsl_complex p2, double z) -> gsl_complex {
+        return selfEnergyIntegralKernelSigma_M(p2, q2, z, interpAccels);
     };
-    double integral_val = q2Integral(p2, Sigma_A_integrand_function, L2);
+    gsl_complex integral_val = q2Integral(p2, Sigma_A_integrand_function, L2);
     return integral_val;
 }
 
-double DSE::performIntegration_Sigma_A(double p2, gsl_interp_accel* interpAccel_A, gsl_interp_accel* interpAccel_M)
+gsl_complex DSE::performIntegration_Sigma_A(gsl_complex p2, InterpAccels* interpAccels)
 {
-    std::function<double(double, double, double)> Sigma_A_integrand_function = [=, this](double q2, double p2, double z) -> double {
-        return selfEnergyIntegralKernelSigma_A(p2, q2, z, interpAccel_A, interpAccel_M);
+    std::function<gsl_complex(gsl_complex, gsl_complex, double)> Sigma_A_integrand_function = [=, this](gsl_complex q2, gsl_complex p2, double z) -> gsl_complex {
+        return selfEnergyIntegralKernelSigma_A(p2, q2, z, interpAccels);
     };
-    double integral_val = q2Integral(p2, Sigma_A_integrand_function, L2);
+    gsl_complex integral_val = q2Integral(p2, Sigma_A_integrand_function, L2);
     return integral_val;
 }
 
-double DSE::q2Integral(double p2, const std::function<double(double, double, double)> &f, double upper_cutoff)
+gsl_complex DSE::q2Integral(gsl_complex p2, const std::function<gsl_complex(gsl_complex, gsl_complex, double)> &f, double upper_cutoff)
 {
-    std::function<double(double)> q2Integrand = [=, this](double q2) -> double {
-        return q2 * zIntegral(p2, q2, f);
+    std::function<gsl_complex(gsl_complex)> q2Integrand = [=, this](gsl_complex q2) -> gsl_complex {
+        return gsl_complex_mul(q2, zIntegral(p2, q2, f));
     };
-    return (4.0 * M_PI)/2.0 * 1.0/(pow(2.0 * M_PI, 4)) * gaussLegendreIntegrator->integrate(q2Integrand, 0, upper_cutoff);
+    return gsl_complex_mul_real(gaussLegendreIntegrator->integrate(q2Integrand, 0, upper_cutoff), (4.0 * M_PI)/2.0 * 1.0/(pow(2.0 * M_PI, 4)));
 }
 
-double DSE::zIntegral(double p2, double q2, const std::function<double(double, double, double)> &f)
+gsl_complex DSE::zIntegral(gsl_complex p2, gsl_complex q2, const std::function<gsl_complex(gsl_complex , gsl_complex , double)> &f)
 {
-    std::function<double(double)> zIntegrand = [=, this](double z) -> double {
+    std::function<gsl_complex(double)> zIntegrand = [=, this](double z) -> gsl_complex {
         return f(q2, p2, z);
     };
     return gaussChebyshevIntegrator->integrate_f_times_sqrt(zIntegrand);
@@ -217,4 +227,30 @@ double DSE::zIntegral(double p2, double q2, const std::function<double(double, d
 QuarkPropagator *DSE::getQuarkPropagator() const
 {
     return quarkPropagator;
+}
+
+InterpAccels DSE::allocInterpAccels()
+{
+    return InterpAccels{
+        .interpAccel_M_X_real = gsl_interp_accel_alloc(),
+        .interpAccel_M_Y_real = gsl_interp_accel_alloc(),
+        .interpAccel_A_X_real = gsl_interp_accel_alloc(),
+        .interpAccel_A_Y_real = gsl_interp_accel_alloc(),
+        .interpAccel_M_X_imag = gsl_interp_accel_alloc(),
+        .interpAccel_M_Y_imag = gsl_interp_accel_alloc(),
+        .interpAccel_A_X_imag = gsl_interp_accel_alloc(),
+        .interpAccel_A_Y_imag = gsl_interp_accel_alloc(),
+    };
+}
+
+void DSE::freeInterpAccels(InterpAccels interpAccels)
+{
+    gsl_interp_accel_free(interpAccels.interpAccel_M_X_real);
+    gsl_interp_accel_free(interpAccels.interpAccel_M_Y_real);
+    gsl_interp_accel_free(interpAccels.interpAccel_A_X_real);
+    gsl_interp_accel_free(interpAccels.interpAccel_A_Y_real);
+    gsl_interp_accel_free(interpAccels.interpAccel_M_X_imag);
+    gsl_interp_accel_free(interpAccels.interpAccel_M_Y_imag);
+    gsl_interp_accel_free(interpAccels.interpAccel_A_X_imag);
+    gsl_interp_accel_free(interpAccels.interpAccel_A_Y_imag);
 }

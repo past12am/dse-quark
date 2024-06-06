@@ -3,9 +3,9 @@ project(QuarkDSE_v3)
 
 set(CMAKE_CXX_STANDARD 17)
 
+find_package(GSL REQUIRED)
+
 add_executable(QuarkDSE_v3 main.cpp
-        src/grid/MomentumGrid.cpp
-        include/grid/MomentumGrid.hpp
         include/Definitions.hpp
         src/dse/DSE.cpp
         include/dse/DSE.hpp
@@ -21,7 +21,9 @@ add_executable(QuarkDSE_v3 main.cpp
         src/numerics/integration/GaussChebyshev.cpp
         src/numerics/integration/GaussLegendre.cpp
         src/numerics/polynomials/LegendrePolynomials.cpp
+        src/grid/ComplexMomentumGrid.cpp
+        include/grid/ComplexMomentumGrid.hpp
+        include/helpers/InterpAcceleratorsStruct.hpp
 )
 
-find_package(GSL REQUIRED)
 target_link_libraries(QuarkDSE_v3 GSL::gsl)
