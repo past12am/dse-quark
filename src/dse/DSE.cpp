@@ -192,10 +192,10 @@ gsl_complex DSE::calc_k2(gsl_complex p2, gsl_complex q2, double z)
 
 gsl_complex DSE::performIntegration_Sigma_M(gsl_complex p2, InterpAccels* interpAccels)
 {
-    std::function<gsl_complex(gsl_complex, gsl_complex, double)> Sigma_A_integrand_function = [=, this](gsl_complex q2, gsl_complex p2, double z) -> gsl_complex {
+    std::function<gsl_complex(gsl_complex, gsl_complex, double)> Sigma_M_integrand_function = [=, this](gsl_complex q2, gsl_complex p2, double z) -> gsl_complex {
         return selfEnergyIntegralKernelSigma_M(p2, q2, z, interpAccels);
     };
-    gsl_complex integral_val = q2Integral(p2, Sigma_A_integrand_function, L2);
+    gsl_complex integral_val = q2Integral(p2, Sigma_M_integrand_function, L2);
     return integral_val;
 }
 
