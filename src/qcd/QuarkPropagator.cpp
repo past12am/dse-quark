@@ -15,7 +15,10 @@ QuarkPropagator::QuarkPropagator(QuarkSelfEnergy* selfEnergy) : selfEnergy(selfE
 
 gsl_complex QuarkPropagator::sigma_v(gsl_complex p2, InterpAccels* interpAccels)
 {
-    return gsl_complex_div(GSL_COMPLEX_ONE, (gsl_complex_mul(A(p2, interpAccels), (gsl_complex_add(p2, gsl_complex_pow_real(M(p2, interpAccels), 2))))));
+    gsl_complex A_val = A(p2, interpAccels);
+    gsl_complex M_val = M(p2, interpAccels);
+    gsl_complex res = gsl_complex_inverse( (gsl_complex_mul(A_val, (gsl_complex_add(p2, gsl_complex_pow_real(M_val, 2))))));
+    return res;
 }
 
 gsl_complex QuarkPropagator::sigma_s(gsl_complex p2, InterpAccels* interpAccels)

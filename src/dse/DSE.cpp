@@ -41,8 +41,8 @@ void DSE::solveDSE()
 
 
     // For next iteration
-    gsl_complex next_Sigma_A_Vals[p2Grid->getNumPoints()];
-    gsl_complex next_Sigma_M_Vals[p2Grid->getNumPoints()];
+    gsl_complex next_Sigma_A_Vals[p2Grid->getNumRealPoints()][p2Grid->getNumImagPoints()];
+    gsl_complex next_Sigma_M_Vals[p2Grid->getNumRealPoints()][p2Grid->getNumImagPoints()];
 
     // For Threadpool
     std::future<gsl_complex> future_newSigma_A_at_p2_val[NUM_THREADS];
@@ -95,8 +95,8 @@ void DSE::solveDSE()
                 //      next_Sigma_A_Vals[i - allocation_counter + threadIdx]
                 for (int threadIdx = 0; threadIdx < NUM_THREADS; threadIdx++)
                 {
-                    next_Sigma_A_Vals[i - allocation_counter + threadIdx] = future_newSigma_A_at_p2_val[threadIdx].get();
-                    next_Sigma_M_Vals[i - allocation_counter + threadIdx] = future_newSigma_M_at_p2_val[threadIdx].get();
+                    next_Sigma_A_Vals[i - allocation_counter + threadIdx][j] = future_newSigma_A_at_p2_val[threadIdx].get();
+                    next_Sigma_M_Vals[i - allocation_counter + threadIdx][j] = future_newSigma_M_at_p2_val[threadIdx].get();
 
                     if(i - allocation_counter + threadIdx == p2Grid->getNumRealPoints() - 1)
                         break;
@@ -114,8 +114,8 @@ void DSE::solveDSE()
         {
             for (int i = 0; i < p2Grid->getNumRealPoints(); i++)
             {
-                if ((gsl_complex_abs(gsl_complex_sub(next_Sigma_A_Vals[i], selfEnergy->getSigmaAValGrid(j, i))) > 1E-10) ||
-                    (gsl_complex_abs(gsl_complex_sub(next_Sigma_M_Vals[i], selfEnergy->getSigmaMValGrid(j, i))) > 1E-10))
+                if ((gsl_complex_abs(gsl_complex_sub(next_Sigma_A_Vals[i][j], selfEnergy->getSigmaAValGrid(j, i))) > 1E-10) ||
+                    (gsl_complex_abs(gsl_complex_sub(next_Sigma_M_Vals[i][j], selfEnergy->getSigmaMValGrid(j, i))) > 1E-10))
                 {
                     converged = false;
                     break;
@@ -129,8 +129,8 @@ void DSE::solveDSE()
         {
             for (int i = 0; i < p2Grid->getNumRealPoints(); i++)
             {
-                selfEnergy->setSigmaAAt(j, i, next_Sigma_A_Vals[i]);
-                selfEnergy->setSigmaMAt(j, i, next_Sigma_M_Vals[i]);
+                selfEnergy->setSigmaAAt(j, i, next_Sigma_A_Vals[i][j]);
+                selfEnergy->setSigmaMAt(j, i, next_Sigma_M_Vals[i][j]);
             }
         }
         selfEnergy->reclacSigma_A_Spline();
@@ -153,7 +153,10 @@ void DSE::solveDSE()
 gsl_complex DSE::selfEnergyIntegralKernelSigma_A(gsl_complex p2, gsl_complex q2, double z, InterpAccels* interpAccels)
 {
     gsl_complex k2 = calc_k2(p2, q2, z);
-    return gsl_complex_mul(gsl_complex_mul(quarkPropagator->sigma_v(q2, interpAccels), g(k2)), F(p2, q2, k2, z));
+    gsl_complex sigma_v_val = quarkPropagator->sigma_v(q2, interpAccels);
+    gsl_complex F_val = F(p2, q2, k2, z);
+    gsl_complex res = gsl_complex_mul(gsl_complex_mul(sigma_v_val, g(k2)), F_val);
+    return res;
 }
 
 gsl_complex DSE::selfEnergyIntegralKernelSigma_M(gsl_complex p2, gsl_complex q2, double z, InterpAccels* interpAccels)
@@ -167,6 +170,7 @@ gsl_complex DSE::F(gsl_complex p2, gsl_complex q2, gsl_complex k2, double z)
     gsl_complex q = gsl_complex_sqrt(q2);
     gsl_complex p = gsl_complex_sqrt(p2);
 
+    // (3.0 * q * z) / p - 2 * q2/k2 * (1 - pow(z ,2));
     return gsl_complex_sub(gsl_complex_div(gsl_complex_mul_real(q, 3.0 * z), p), gsl_complex_mul_real(gsl_complex_div(q2, k2), 2.0 * (1 - pow(z ,2))));
 }
 

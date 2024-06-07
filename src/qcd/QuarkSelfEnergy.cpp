@@ -117,11 +117,11 @@ gsl_complex QuarkSelfEnergy::Sigma_A(gsl_complex p2, InterpAccels* interpAccels)
 void QuarkSelfEnergy::setSigmaMAt(int imag_idx, int real_idx, gsl_complex val)
 {
     gsl_spline2d_set(splineSigma_M_real, Sigma_M_real_val_grid, real_idx, imag_idx, GSL_REAL(val));
-    gsl_spline2d_set(splineSigma_M_imag, Sigma_M_real_val_grid, real_idx, imag_idx, GSL_IMAG(val));
+    gsl_spline2d_set(splineSigma_M_imag, Sigma_M_imag_val_grid, real_idx, imag_idx, GSL_IMAG(val));
 }
 
 void QuarkSelfEnergy::setSigmaAAt(int imag_idx, int real_idx, gsl_complex val)
 {
     gsl_spline2d_set(splineSigma_A_real, Sigma_A_real_val_grid, real_idx, imag_idx, GSL_REAL(val));
-    gsl_spline2d_set(splineSigma_A_imag, Sigma_A_real_val_grid, real_idx, imag_idx, GSL_IMAG(val));
+    gsl_spline2d_set(splineSigma_A_imag, Sigma_A_imag_val_grid, real_idx, imag_idx, GSL_IMAG(val));
 }

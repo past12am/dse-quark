@@ -8,7 +8,7 @@
 int main()
 {
 
-    ComplexMomentumGrid* p2Grid = new ComplexMomentumGrid(1000, 3, 1E-3, 10, 1E3);
+    ComplexMomentumGrid* p2Grid = new ComplexMomentumGrid(500, 11, 1E-3, 5, 1E3);
     DSE* dse = new DSE(1E3, p2Grid);
 
 
@@ -37,11 +37,11 @@ int main()
     QuarkPropagator* quarkPropagator = dse->getQuarkPropagator();
 
     std::ostringstream fnamestrstream_A_p2;
-    fnamestrstream_A_p2 << "/home/past12am/OuzoCloud/Studium/Physik/6_Semester/SE_Bachelorarbeit/QCD_Intro/QuarkDSE_v3/output/A_p2_m_" << QUARK_MASS << ".txt";
+    fnamestrstream_A_p2 << "/home/past12am/OuzoCloud/Studium/Physik/6_Semester/SE_Bachelorarbeit/QCD_Intro/QuarkDSE_v3/output_complex/A_p2_m_" << QUARK_MASS << ".txt";
     std::string filename_A_p2 = fnamestrstream_A_p2.str();
 
     std::ostringstream fnamestrstream_M_p2;
-    fnamestrstream_M_p2 << "/home/past12am/OuzoCloud/Studium/Physik/6_Semester/SE_Bachelorarbeit/QCD_Intro/QuarkDSE_v3/output/M_p2_m_" << QUARK_MASS << ".txt";
+    fnamestrstream_M_p2 << "/home/past12am/OuzoCloud/Studium/Physik/6_Semester/SE_Bachelorarbeit/QCD_Intro/QuarkDSE_v3/output_complex/M_p2_m_" << QUARK_MASS << ".txt";
     std::string filename_M_p2 = fnamestrstream_M_p2.str();
 
     std::ofstream A_p2_file;
