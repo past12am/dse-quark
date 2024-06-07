@@ -7,6 +7,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 from matplotlib import cm
+import matplotlib.ticker as mticker
 
 
 def sigma_v(p2: np.ndarray, A: np.ndarray, M: np.ndarray):
@@ -181,6 +182,9 @@ def plot_sigma_s_sigma_v_positive(p2: np.ndarray, sigma_v: np.ndarray, sigma_s: 
     ax.set_xlabel(f"$\Re(p^2)$")
     ax.set_ylabel("$\Im(p^2)$")
 
+    ax.xaxis.set_major_formatter(mticker.FuncFormatter(lambda val, pos=None: f"$10^{{{val}}}$"))
+    ax.xaxis.set_major_locator(mticker.MaxNLocator(integer=True))
+
 
     # Subplot imag sigma_v
     ax = fig.add_subplot(2, 2, 2, projection='3d')
@@ -188,6 +192,9 @@ def plot_sigma_s_sigma_v_positive(p2: np.ndarray, sigma_v: np.ndarray, sigma_s: 
     ax.plot_trisurf(np.log(np.real(p2[positive_idxs])), np.imag(p2[positive_idxs]), np.imag(sigma_v[positive_idxs]), cmap=cm.coolwarm)
     ax.set_xlabel(f"$\Re(p^2)$")
     ax.set_ylabel("$\Im(p^2)$")
+
+    ax.xaxis.set_major_formatter(mticker.FuncFormatter(lambda val, pos=None: f"$10^{{{val}}}$"))
+    ax.xaxis.set_major_locator(mticker.MaxNLocator(integer=True))
 
 
     # Subplot real sigma_s
@@ -197,6 +204,9 @@ def plot_sigma_s_sigma_v_positive(p2: np.ndarray, sigma_v: np.ndarray, sigma_s: 
     ax.set_xlabel(f"$\Re(p^2)$")
     ax.set_ylabel("$\Im(p^2)$")
 
+    ax.xaxis.set_major_formatter(mticker.FuncFormatter(lambda val, pos=None: f"$10^{{{val}}}$"))
+    ax.xaxis.set_major_locator(mticker.MaxNLocator(integer=True))
+
 
     # Subplot imag sigma_s
     ax = fig.add_subplot(2, 2, 4, projection='3d')
@@ -204,6 +214,9 @@ def plot_sigma_s_sigma_v_positive(p2: np.ndarray, sigma_v: np.ndarray, sigma_s: 
     ax.plot_trisurf(np.log(np.real(p2[positive_idxs])), np.imag(p2[positive_idxs]), np.imag(sigma_s[positive_idxs]), cmap=cm.coolwarm)
     ax.set_xlabel(f"$\Re(p^2)$")
     ax.set_ylabel("$\Im(p^2)$")
+
+    ax.xaxis.set_major_formatter(mticker.FuncFormatter(lambda val, pos=None: f"$10^{{{val}}}$"))
+    ax.xaxis.set_major_locator(mticker.MaxNLocator(integer=True))
 
     plt.savefig("./output_complex/plots/sigma_greater_zero.png", dpi=600)
 
