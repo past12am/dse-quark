@@ -12,6 +12,7 @@ class ComplexMomentumGrid
 {
     private:
         int num_points_real;
+        int num_points_real_neg;
         int num_points_imag;
 
         double* p2_grid_real;
@@ -19,10 +20,10 @@ class ComplexMomentumGrid
 
         gsl_complex** p2_grid;
 
-        void generateMomentumGridLogarithmic(double start, double center, double end);
+        void generateMomentumGridLogarithmic(double start, double dist_from_0, double center, double end);
 
     public:
-        ComplexMomentumGrid(int num_points_real, int num_points_imag, double start, double center, double end);
+        ComplexMomentumGrid(int num_points_real, int num_points_imag, int num_points_real_neg, double start, double center, double end, double dist_from_0);
 
         int getNumPoints();
         int getNumImagPoints();

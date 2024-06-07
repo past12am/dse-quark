@@ -8,7 +8,7 @@
 int main()
 {
 
-    ComplexMomentumGrid* p2Grid = new ComplexMomentumGrid(500, 11, 1E-3, 5, 1E3);
+    ComplexMomentumGrid* p2Grid = new ComplexMomentumGrid(500, 11, 20, -2, 5, 1E3, 1E-3);
     DSE* dse = new DSE(1E3, p2Grid);
 
 
