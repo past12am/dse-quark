@@ -114,6 +114,8 @@ def plot_sigma_s_sigma_v_contour(p2_real_meshgrid: np.ndarray,
     ax.set_xlabel(f"$\Re(p^2)$")
     ax.set_ylabel("$\Im(p^2)$")
 
+    plt.savefig("./output_complex/plots/sigma_contour.png", dpi=600)
+
     plt.show()
     plt.close()
 
@@ -162,6 +164,7 @@ def plot_sigma_s_sigma_v_around_zero(p2: np.ndarray, sigma_v: np.ndarray, sigma_
     ax.set_xlabel(f"$\Re(p^2)$")
     ax.set_ylabel("$\Im(p^2)$")
 
+    plt.savefig("./output_complex/plots/sigma_around_zero.png", dpi=600)
 
     plt.show()
     plt.close()
@@ -202,6 +205,7 @@ def plot_sigma_s_sigma_v_positive(p2: np.ndarray, sigma_v: np.ndarray, sigma_s: 
     ax.set_xlabel(f"$\Re(p^2)$")
     ax.set_ylabel("$\Im(p^2)$")
 
+    plt.savefig("./output_complex/plots/sigma_greater_zero.png", dpi=600)
 
     plt.show()
     plt.close()
@@ -232,7 +236,7 @@ def generatePlots(data_files_M, data_files_A):
 
 
 
-base_path = "/home/past12am/OuzoCloud/Studium/Physik/6_Semester/SE_Bachelorarbeit/QCD_Intro/QuarkDSE_v3/output_complex/"
+base_path = "./output_complex/"
 data_files_m = [f for f in listdir(base_path) if isfile(join(base_path, f)) and f[0] == "M" and f.split(".")[-1] == "txt"]
 data_files_a = [f for f in listdir(base_path) if isfile(join(base_path, f)) and f[0] == "A" and f.split(".")[-1] == "txt"]
 
